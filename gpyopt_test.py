@@ -1,6 +1,6 @@
 from GPyOpt.methods import BayesianOptimization
 import numpy as np
-import matplotlib.pyplot as plt
+import time
 
 #2-Dimensional Example
 
@@ -14,9 +14,10 @@ bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (-10,5)},
 {'name':'var_2', 'type':'continuous', 'domain':(0, 10)}]
 
 myOpt = BayesianOptimization(f, domain=bounds)
-
+tic = time.perf_counter()
 myOpt.run_optimization(max_iter = 15, max_time = 60, eps=10e-06)
-
+toc = time.perf_counter()
+print(toc-tic)
 print(myOpt.x_opt, myOpt.fx_opt)
 
 myOpt.plot_acquisition()
@@ -35,7 +36,10 @@ bounds = [{'name': 'var_1', 'type': 'continuous', 'domain': (-1,1)}]*n
 
 my_n_Opt = BayesianOptimization(f_high, domain=bounds)
 
+tic = time.perf_counter()
 my_n_Opt.run_optimization(max_iter = 15, max_time = 60, eps=10e-06)
+toc = time.perf_counter()
+print(toc-tic)
 
 print(my_n_Opt.x_opt, my_n_Opt.fx_opt)
 
