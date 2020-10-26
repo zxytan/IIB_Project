@@ -3,6 +3,7 @@ import numpy as np
 from numpy.random import randn
 import time
 import pandas as pd
+import matplotlib.pyplot as plt
 
 np.random.seed(24)
 
@@ -38,6 +39,8 @@ def rastrigin(X):
     return(10*len(X[0])+np.sum(np.power(X,2)-10*np.cos(2*np.pi*X),1))+randn()*sigma
 bounds_rastrigin = [{'name': 'x', 'type': 'continuous', 'domain': (-5.12,5.12)}]
 
+"""
+#iterate and test with different hyperparameters
 n = 20
 function = rastrigin
 domain = bounds_rastrigin*n
@@ -62,4 +65,24 @@ for sigma in [0, 0.1, 1, 2, 4]:
             results = results.append(result, ignore_index=True)
             print(myOpt.x_opt, result)
 results.to_excel("gpyopt_test_results.xlsx", index=False)
-
+"""
+"""
+demonstrate with 1D - acquisition, noise effect, convergence
+sigma=0
+xdata = np.linspace(0, 1.2, 100)
+ydata = [one_dim(x) for x in xdata]
+plt.plot(xdata, ydata)
+plt.show()
+sigma = 0.1
+myOpt = BayesianOptimization(one_dim, domain=bounds_one_dim, exact_feval=True)
+myOpt.run_optimization(max_iter=50, max_time=60, eps=1e-6)
+myOpt.plot_acquisition()
+myOpt.plot_convergence()
+print(myOpt.x_opt, myOpt.fx_opt)
+"""
+sigma = 0
+n=12
+myOpt = BayesianOptimization(rastrigin, domain=bounds_rastrigin*n, exact_feval=True)
+myOpt.run_optimization(max_iter=500, eps=1e-6)
+myOpt.plot_convergence()
+print(myOpt.x_opt, myOpt.fx_opt)
