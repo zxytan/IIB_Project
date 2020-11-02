@@ -7,8 +7,6 @@ import matplotlib.pyplot as plt
 
 np.random.seed(24)
 
-results = pd.read_excel('gpyopt_test_results.xlsx')
-
 def one_dim(x):
     #1-D
     #optimum at x=0.96609, f(x)=-1.48907
@@ -41,13 +39,15 @@ bounds_rastrigin = [{'name': 'x', 'type': 'continuous', 'domain': (-5.12,5.12)}]
 
 """
 #iterate and test with different hyperparameters
+
+results = pd.read_excel('gpyopt_test_results.xlsx')
+
 n = 20
 function = rastrigin
 domain = bounds_rastrigin*n
 actual_x = [[0]*n]
 actual_f = 0
 max_time = 600
-
 
 for sigma in [0, 0.1, 1, 2, 4]:
     for max_iter in [100, 200, 500]:
@@ -66,23 +66,58 @@ for sigma in [0, 0.1, 1, 2, 4]:
             print(myOpt.x_opt, result)
 results.to_excel("gpyopt_test_results.xlsx", index=False)
 """
-"""
-demonstrate with 1D - acquisition, noise effect, convergence
-sigma=0
-xdata = np.linspace(0, 1.2, 100)
-ydata = [one_dim(x) for x in xdata]
-plt.plot(xdata, ydata)
-plt.show()
-sigma = 0.1
-myOpt = BayesianOptimization(one_dim, domain=bounds_one_dim, exact_feval=True)
-myOpt.run_optimization(max_iter=50, max_time=60, eps=1e-6)
-myOpt.plot_acquisition()
-myOpt.plot_convergence()
-print(myOpt.x_opt, myOpt.fx_opt)
-"""
-sigma = 0
-n=12
-myOpt = BayesianOptimization(rastrigin, domain=bounds_rastrigin*n, exact_feval=True)
-myOpt.run_optimization(max_iter=500, eps=1e-6)
-myOpt.plot_convergence()
-print(myOpt.x_opt, myOpt.fx_opt)
+
+# test sparse GP
+results = pd.DataFrame(None)
+for function in [one_dim, booth, sphere, rastrigin]:
+    if function == one_dim:
+        ns = [1]
+        domain = bounds_one_dim
+        actual_x = 0.96609
+        actual_f = -1.48907
+        func_name = "one_dim"
+        iters = [10,20,50,100]
+        
+    elif function == booth:
+        ns = [2]
+        domain = bounds_booth
+        actual_x = [1,3]
+        actual_f = 0
+        func_name = "booth"
+        iters = [10,20,50,100]
+        
+    elif function == sphere:
+        ns = [5,12]
+        domain = bounds_sphere
+        func_name = "sphere"
+        iters = [10,20,50,100]
+        
+    elif function == rastrigin:
+        ns = [5,12]
+        domain = bounds_rastrigin
+        func_name = "rastrigin"
+        iters = [10,20,50,100,200,500]
+
+    for n in ns:
+        domain = domain*n
+        if function == sphere or function == rastrigin:
+            actual_x = [[0]*n]
+            actual_f = 0
+            
+        for sigma in [0, 0.1, 1]:
+            for max_iter in iters:
+                
+                myOpt = BayesianOptimization(function,
+                                            domain=domain,
+                                            acquisition_type="EI",
+                                            model_type='sparseGP',
+                                            exact_feval=True)
+                myOpt.run_optimization(max_iter = max_iter, max_time = 600, eps=1e-6)
+                result = {"n": n,"function":func_name, "sigma": sigma, "max_it": max_iter, "max_time": 600, "acquisition func": "EI", 
+                        "eucl_dist to true x_opt": float(np.linalg.norm(myOpt.x_opt-actual_x)), 
+                        "diff to true f(x_opt)": float(np.abs(function(myOpt.x_opt)-actual_f)), "actual_it": myOpt.num_acquisitions,
+                        "actual_time": myOpt.cum_time}
+        
+                results = results.append(result, ignore_index=True)
+                print(myOpt.x_opt, result)
+            results.to_excel("gpyopt_temp_results.xlsx", index=False)           
