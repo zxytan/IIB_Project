@@ -111,6 +111,7 @@ for function in [one_dim, booth, sphere, rastrigin]:
                                             domain=domain,
                                             acquisition_type="EI",
                                             model_type='sparseGP',
+                                            
                                             exact_feval=True)
                 myOpt.run_optimization(max_iter = max_iter, max_time = 600, eps=1e-6)
                 result = {"n": n,"function":func_name, "sigma": sigma, "max_it": max_iter, "max_time": 600, "acquisition func": "EI", 
