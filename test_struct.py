@@ -25,6 +25,13 @@ class member_props():
 
 # Create a new model
 def make_truss(num_units, non_basic_nodes, mem_p):
+    """
+    function to create pynite truss model of test struct
+    inputs:
+    num_units = number of base units to make up struct
+    non_basic_nodes = additional nodes w/ relative positions and names
+    mem_p = list of member properties, order seen here: https://photos.app.goo.gl/GNUjZherzaSmKiod9
+    """
 
     num_non_basic_nodes = len(non_basic_nodes)    
     num_members = (num_units*2+1)*4+num_units*(num_non_basic_nodes*8+(num_non_basic_nodes*(num_non_basic_nodes-1)/2))
