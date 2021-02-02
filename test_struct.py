@@ -3,7 +3,9 @@
 # Import 'FEModel3D' and 'Visualization' from 'PyNite'
 from PyNite import FEModel3D
 from PyNite import Visualization
+import numpy as np
 
+#make node class for adding non basic nodes
 class my_node():
     def __init__(self, name, x, y, z):
         self.name=name
@@ -11,85 +13,90 @@ class my_node():
         self.y = y
         self.z = z
 
+#make member properties class
+class member_props():
+    def __init__(self, E, G, Iy, Iz, J, A):
+        self.E = E
+        self.G = G
+        self.Iy = Iy
+        self.Iz = Iz
+        self.J = J
+        self.A = A
+
 # Create a new model
+def make_truss(num_units, non_basic_nodes, mem_p):
 
+    num_non_basic_nodes = len(non_basic_nodes)    
+    num_members = (num_units*2+1)*4+num_units*(num_non_basic_nodes*8+(num_non_basic_nodes*(num_non_basic_nodes-1)/2))
+    if len(mem_p) != num_members:
+        print(f'wrong number of member properties supplied! must be {num_members}')
+        return
 
-def make_unit(origin, non_basic_nodes):
-
-    unit_truss = FEModel3D()
+    truss = FEModel3D()  
     #define nodes
-    unit_truss.AddNode('1', origin[0], origin[1], origin[2])
-    unit_truss.AddNode('2', origin[0], origin[1], origin[2]+20)
-    unit_truss.AddNode('3', origin[0], origin[1]+20, origin[2]+20)
-    unit_truss.AddNode('4', origin[0], origin[1]+20, origin[2])
-    unit_truss.AddNode('5', origin[0]+20, origin[1], origin[2])
-    unit_truss.AddNode('6', origin[0]+20, origin[1], origin[2]+20)
-    unit_truss.AddNode('7', origin[0]+20, origin[1]+20, origin[2]+20)
-    unit_truss.AddNode('8', origin[0]+20, origin[1]+20, origin[2])
-    
-    for node in non_basic_nodes:
-        unit_truss.AddNode(node.name, origin[0]+node.x, origin[1]+node.y, origin[2]+node.z)
+    for i in range(num_units+1):
+        truss.AddNode(f'{i*4+1}', i*20, 0, 0)
+        truss.AddNode(f'{i*4+2}', i*20, 0, 20)
+        truss.AddNode(f'{i*4+3}', i*20, 20, 20)
+        truss.AddNode(f'{i*4+4}', i*20, 20, 0)
 
-    #make members
-    E= 9999999
-    G = 100
-    Iy = 100
-    Iz = 100
-    J=100
-    A=100
-    unit_truss.AddMember('12', '1', '2', E, G, Iy, Iz, J, A)
-    unit_truss.AddMember('14', '1', '4', E, G, Iy, Iz, J, A)
-    unit_truss.AddMember('15', '1', '5', E, G, Iy, Iz, J, A)
-    unit_truss.AddMember('23', '2', '3', E, G, Iy, Iz, J, A)
-    unit_truss.AddMember('26', '2', '6', E, G, Iy, Iz, J, A)
-    unit_truss.AddMember('34', '3', '4', E, G, Iy, Iz, J, A)
-    unit_truss.AddMember('37', '3', '7', E, G, Iy, Iz, J, A)
-    unit_truss.AddMember('48', '4', '8', E, G, Iy, Iz, J, A)
-    unit_truss.AddMember('56', '5', '6', E, G, Iy, Iz, J, A)
-    unit_truss.AddMember('58', '5', '8', E, G, Iy, Iz, J, A)
-    unit_truss.AddMember('67', '6', '7', E, G, Iy, Iz, J, A)
-    unit_truss.AddMember('78', '7', '8', E, G, Iy, Iz, J, A)
-
-    for base_node in ['1', '2', '3', '4', '5', '6', '7', '8']:
+    non_basic_node_names = []
+    for i in range(num_units):
         for node in non_basic_nodes:
-            unit_truss.AddMember(base_node+node.name, base_node, node.name, E, G, Iy, Iz, J, A)
-    for i, node in enumerate(non_basic_nodes):
-        for n, node_2 in enumerate(non_basic_nodes):
-            if i < n:
-                unit_truss.AddMember(node.name+node_2.name, node.name, node_2.name, E, G, Iy, Iz, J, A)
+            truss.AddNode(node.name+str(i+1), i*20+node.x, node.y, node.z)
+            non_basic_node_names.append(node.name+str(i+1))
 
-    unit_truss.DefineSupport('5', True, True, True, True, True, True)
-    unit_truss.DefineSupport('6', True, True, True, True, True, True)
-    unit_truss.DefineSupport('7', True, True, True, True, True, True)
-    unit_truss.DefineSupport('8', True, True, True, True, True, True)
+    base_node_names = np.array(range(1, (num_units+1)*4+1))
+    base_node_names = base_node_names.reshape(-1, 4).astype('str')
 
-    return(unit_truss)
+    print(base_node_names)
+    
+    for i, node_group in enumerate(base_node_names):
+        #connect basic nodes in one plane
+        truss.AddMember(node_group[0]+'-'+node_group[1], node_group[0], node_group[1], mem_p[0].E, mem_p[0].G, mem_p[0].Iy, mem_p[0].Iz, mem_p[0].J, mem_p[0].A)
+        truss.AddMember(node_group[1]+'-'+node_group[2], node_group[1], node_group[2], mem_p[1].E, mem_p[1].G, mem_p[1].Iy, mem_p[1].Iz, mem_p[1].J, mem_p[1].A)
+        truss.AddMember(node_group[2]+'-'+node_group[3], node_group[2], node_group[3], mem_p[2].E, mem_p[2].G, mem_p[2].Iy, mem_p[2].Iz, mem_p[2].J, mem_p[2].A)
+        truss.AddMember(node_group[3]+'-'+node_group[0], node_group[3], node_group[0], mem_p[3].E, mem_p[3].G, mem_p[3].Iy, mem_p[3].Iz, mem_p[3].J, mem_p[3].A)
 
 
-# # Add nodal loads
-# truss.AddNodeLoad('A', 'FX', 10)
-# truss.AddNodeLoad('A', 'FY', 60)
-# truss.AddNodeLoad('A', 'FZ', 20)
+    for i in range(num_units):
+        non_basic_node_group = non_basic_node_names[i*num_non_basic_nodes:(i+1)*num_non_basic_nodes]
+        #connect non basic nodes in a unit
+        idx = -int(num_non_basic_nodes*(num_non_basic_nodes-1)/2)
+        for n, node in enumerate(non_basic_node_group):
+            for m, node_2 in enumerate(non_basic_node_group):
+                if n < m:
+                    truss.AddMember(node+'-'+node_2, node, node_2, mem_p[idx].E, mem_p[idx].G, mem_p[idx].Iy, mem_p[idx].Iz, mem_p[idx].J, mem_p[idx].A)
+                    idx += 1
 
-# # Analyze the model
-# truss.Analyze()
 
-# # Print results
-# print('Member BC calculated axial force: ' + str(truss.GetMember('BC').MaxAxial()))
-# print('Member BC expected axial force: 32.7 Tension')
-# print('Member BD calculated axial force: ' + str(truss.GetMember('BD').MaxAxial()))
-# print('Member BD expected axial force: 45.2 Tension')
-# print('Member BE calculated axial force: ' + str(truss.GetMember('BE').MaxAxial()))
-# print('Member BE expected axial force: 112.1 Compression')
+        base_node_group = base_node_names.flatten()[i*4:i*4+8]
+        #connect base nodes to appropriate non basic nodes in a unit
+        for i, node in enumerate(non_basic_node_group):
+            for n, base_node in enumerate(base_node_group):
+                truss.AddMember(base_node+'-'+node, base_node, node, mem_p[8+i*8+n].E, mem_p[8+i*8+n].G, mem_p[8+i*8+n].Iy, mem_p[8+i*8+n].Iz, mem_p[8+i*8+n].J, mem_p[8+i*8+n].A)
 
-# # Render the model for viewing. The text height will be set to 50 mm.
-# # Because the members in this example are nearly rigid, there will be virtually no deformation. The deformed shape won't be rendered.
-# # The program has created a default load case 'Case 1' and a default load combo 'Combo 1' since we didn't specify any. We'll display 'Case 1'.
+
+    #connect base nodes across units
+    for n, node_group in enumerate(base_node_names.T):
+        for i in range(num_units):
+            truss.AddMember(node_group[i]+'-'+node_group[i+1], node_group[i], node_group[i+1], mem_p[n+4].E, mem_p[n+4].G, mem_p[n+4].Iy, mem_p[n+4].Iz, mem_p[n+4].J, mem_p[n+4].A)    
+
+    truss.DefineSupport('1', True, True, True, True, True, True)
+    truss.DefineSupport('2', True, True, True, True, True, True)
+    truss.DefineSupport('3', True, True, True, True, True, True)
+    truss.DefineSupport('4', True, True, True, True, True, True)
+
+    
+
+    return(truss)
+
 node_a = my_node('a', 3, 5, 8)
 node_b = my_node('b', 19, 18, 18)
+members_p = member_props(9999,100,100,100,100,100)
 node_c = my_node('c', 10, 20, 15)
-unit = make_unit([0,0,0], [node_a, node_b, node_c])
+truss = make_truss(1, [node_a], [members_p]*20)
 
-Visualization.RenderModel(unit, text_height=0.05, render_loads=True, case='Case 1')
+Visualization.RenderModel(truss, text_height=1, render_loads=False)
 
 
