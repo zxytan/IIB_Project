@@ -1,4 +1,4 @@
-# Units for this model are mm
+# Units for this model are m and N
 
 # Import 'FEModel3D' and 'Visualization' from 'PyNite'
 from PyNite import FEModel3D
@@ -15,95 +15,146 @@ class my_node():
 
 #make member properties class
 class member_props():
-    def __init__(self, E, G, Iy, Iz, J, A):
+    """
+    gives member properties given diameter d (m), Young's modulus E (Pa), density p (kg/m^3)
+    """
+    def __init__(self, d, E=3*10**9, v=0.3):
         self.E = E
-        self.G = G
-        self.Iy = Iy
-        self.Iz = Iz
-        self.J = J
-        self.A = A
+        self.G = E/(2*(1+v))
+        self.Iy = np.pi*(d/2)**4/4
+        self.Iz = np.pi*(d/2)**4/4
+        self.J = np.pi*(d/2)**4/2
+        self.A = np.pi*(d/2)**2
 
-# Create a new model
-def make_truss(num_units, non_basic_nodes, mem_p):
-    """
-    function to create pynite truss model of test struct
-    inputs:
-    num_units = number of base units to make up struct
-    non_basic_nodes = additional nodes w/ relative positions and names
-    mem_p = list of member properties, order seen here: https://photos.app.goo.gl/GNUjZherzaSmKiod9
-    """
+class test_truss:
+    def __init__(self, num_units=8, unit_len=0.02):
+        self.num_units = num_units
+        self.unit_len = unit_len
+        self.L = num_units*unit_len
 
-    num_non_basic_nodes = len(non_basic_nodes)    
-    num_members = (num_units*2+1)*4+num_units*(num_non_basic_nodes*8+(num_non_basic_nodes*(num_non_basic_nodes-1)/2))
-    if len(mem_p) != num_members:
-        print(f'wrong number of member properties supplied! must be {num_members}')
-        return
+    def make_nodes(self, node_locs):
+        self.num_nodes = len(node_locs)
+        self.non_basic_nodes = []
+        for i, node in enumerate(node_locs):
+            self.non_basic_nodes.append(my_node(chr(97+i), node[0], node[1], node[2]))
 
-    truss = FEModel3D()  
-    #define nodes
-    for i in range(num_units+1):
-        truss.AddNode(f'{i*4+1}', i*20, 0, 0)
-        truss.AddNode(f'{i*4+2}', i*20, 0, 20)
-        truss.AddNode(f'{i*4+3}', i*20, 20, 20)
-        truss.AddNode(f'{i*4+4}', i*20, 20, 0)
+    def make_mem_ps(self, member_ds, E=3*10**9, p=1.25, v=0.3):
+        """
+        member diameters list in order shown here: https://photos.app.goo.gl/GNUjZherzaSmKiod9
+        """
+        self.num_members = int((self.num_units*2+1)*4+self.num_units*(self.num_nodes*8+(self.num_nodes*(self.num_nodes-1)/2)))
+        if len(member_ds) != self.num_members:
+            raise NameError(f'wrong number of member diameters supplied! must be {self.num_members}')
+        self.member_ds = member_ds
+        self.E = E
+        self.p = p
+        self.v = v
+        self.mem_p = []
+        for d in self.member_ds:
+            self.mem_p.append(member_props(d, self.E, self.v))
 
-    non_basic_node_names = []
-    for i in range(num_units):
-        for node in non_basic_nodes:
-            truss.AddNode(node.name+str(i+1), i*20+node.x, node.y, node.z)
-            non_basic_node_names.append(node.name+str(i+1))
+    # Create a new model
+    def make_truss(self):
+        """
+        function to create pynite truss model of test struct
+        """
+        self.truss = FEModel3D()
+        #define nodes
+        for i in range(self.num_units+1):
+            self.truss.AddNode(f'{i*4+1}', i*self.unit_len, 0, 0)
+            self.truss.AddNode(f'{i*4+2}', i*self.unit_len, 0, self.unit_len)
+            self.truss.AddNode(f'{i*4+3}', i*self.unit_len, self.unit_len, self.unit_len)
+            self.truss.AddNode(f'{i*4+4}', i*self.unit_len, self.unit_len, 0)
 
-    base_node_names = np.array(range(1, (num_units+1)*4+1))
-    base_node_names = base_node_names.reshape(-1, 4).astype('str')
+        non_basic_node_names = []
 
-    print(base_node_names)
+        for i in range(self.num_units):
+            for node in self.non_basic_nodes:
+                self.truss.AddNode(node.name+str(i+1), i*self.unit_len+node.x, node.y, node.z)
+                non_basic_node_names.append(node.name+str(i+1))
+
+        base_node_names = np.array(range(1, (self.num_units+1)*4+1)).astype('str')
+        self.base_node_names = base_node_names.reshape(-1, 4)
+        
+        for i, node_group in enumerate(self.base_node_names):
+            #connect basic nodes in one plane
+            for n in [0, 1, 2, 3]:
+                if n == 3:
+                    m = 0
+                else:
+                    m = n+1
+                self.truss.AddMember(node_group[n]+'-'+node_group[m], node_group[n], node_group[m], \
+                    self.mem_p[n].E, self.mem_p[n].G, self.mem_p[n].Iy, self.mem_p[n].Iz, self.mem_p[n].J, self.mem_p[n].A)
+
+        for i in range(self.num_units):
+            non_basic_node_group = non_basic_node_names[i*self.num_nodes:(i+1)*self.num_nodes]
+            #connect non basic nodes in a unit
+            idx = -int(self.num_nodes*(self.num_nodes-1)/2)
+            for n, node in enumerate(non_basic_node_group):
+                for m, node_2 in enumerate(non_basic_node_group):
+                    if n < m:
+                        self.truss.AddMember(node+'-'+node_2, node, node_2, \
+                            self.mem_p[idx].E, self.mem_p[idx].G, self.mem_p[idx].Iy, self.mem_p[idx].Iz, self.mem_p[idx].J, self.mem_p[idx].A)
+                        idx += 1
+
+
+            base_node_group = base_node_names[i*4:i*4+8]
+            #connect base nodes to appropriate non basic nodes in a unit
+            for i, node in enumerate(non_basic_node_group):
+                for n, base_node in enumerate(base_node_group):
+                    idx = 8+i*8+n
+                    self.truss.AddMember(base_node+'-'+node, base_node, node, \
+                        self.mem_p[idx].E, self.mem_p[idx].G, self.mem_p[idx].Iy, self.mem_p[idx].Iz, self.mem_p[idx].J, self.mem_p[idx].A)
+
+
+        #connect base nodes across units
+        for n, node_group in enumerate(self.base_node_names.T):
+            for i in range(self.num_units):
+                self.truss.AddMember(node_group[i]+'-'+node_group[i+1], node_group[i], node_group[i+1], \
+                    self.mem_p[n+4].E, self.mem_p[n+4].G, self.mem_p[n+4].Iy, self.mem_p[n+4].Iz, self.mem_p[n+4].J, self.mem_p[n+4].A)    
+
+        self.truss.DefineSupport('1', True, True, True, True, True, True)
+        self.truss.DefineSupport('2', True, True, True, True, True, True)
+        self.truss.DefineSupport('3', True, True, True, True, True, True)
+        self.truss.DefineSupport('4', True, True, True, True, True, True)
+
+    def find_mass(self):
+        self.mass = 0
+        for member in self.truss.Members:
+            L = member.L()
+            A = member.A
+            self.mass += self.p*L*A
+        print(self.mass)
+
+    def find_EI(self, tip_load):
+        load_nodes = self.base_node_names[-1]
+        for node in load_nodes:
+            self.truss.AddNodeLoad(node, 'FY', -tip_load/4)
+        self.truss.Analyze()
+        deflections = []
+        for i in range(4):
+            deflections.append(abs(self.truss.GetNode(load_nodes[i]).DY['Combo 1']))
+        deflection = max(deflections)
+        if deflection > self.L/250:
+            raise NameError('large deflection, might want to reduce load!')
+        self.truss.ClearLoads()
+        self.EI = tip_load*self.L**3/(3*abs(deflection))
+        print(self.EI)
+        
+
+
     
-    for i, node_group in enumerate(base_node_names):
-        #connect basic nodes in one plane
-        truss.AddMember(node_group[0]+'-'+node_group[1], node_group[0], node_group[1], mem_p[0].E, mem_p[0].G, mem_p[0].Iy, mem_p[0].Iz, mem_p[0].J, mem_p[0].A)
-        truss.AddMember(node_group[1]+'-'+node_group[2], node_group[1], node_group[2], mem_p[1].E, mem_p[1].G, mem_p[1].Iy, mem_p[1].Iz, mem_p[1].J, mem_p[1].A)
-        truss.AddMember(node_group[2]+'-'+node_group[3], node_group[2], node_group[3], mem_p[2].E, mem_p[2].G, mem_p[2].Iy, mem_p[2].Iz, mem_p[2].J, mem_p[2].A)
-        truss.AddMember(node_group[3]+'-'+node_group[0], node_group[3], node_group[0], mem_p[3].E, mem_p[3].G, mem_p[3].Iy, mem_p[3].Iz, mem_p[3].J, mem_p[3].A)
 
+# node_a = my_node('a', 0.003, 0.005, 0.008), node_b = my_node('b', 0.019, 0.018, 0.018), node_c = my_node('c', 0.01, 0.014, 0.015)
+node_locs = np.array([[0.17, 1.94, 0.46], [17.2, 5.3, 20], [18.1, 2.13, 20]])/1000
+member_ds = [0.004]*284
 
-    for i in range(num_units):
-        non_basic_node_group = non_basic_node_names[i*num_non_basic_nodes:(i+1)*num_non_basic_nodes]
-        #connect non basic nodes in a unit
-        idx = -int(num_non_basic_nodes*(num_non_basic_nodes-1)/2)
-        for n, node in enumerate(non_basic_node_group):
-            for m, node_2 in enumerate(non_basic_node_group):
-                if n < m:
-                    truss.AddMember(node+'-'+node_2, node, node_2, mem_p[idx].E, mem_p[idx].G, mem_p[idx].Iy, mem_p[idx].Iz, mem_p[idx].J, mem_p[idx].A)
-                    idx += 1
-
-
-        base_node_group = base_node_names.flatten()[i*4:i*4+8]
-        #connect base nodes to appropriate non basic nodes in a unit
-        for i, node in enumerate(non_basic_node_group):
-            for n, base_node in enumerate(base_node_group):
-                truss.AddMember(base_node+'-'+node, base_node, node, mem_p[8+i*8+n].E, mem_p[8+i*8+n].G, mem_p[8+i*8+n].Iy, mem_p[8+i*8+n].Iz, mem_p[8+i*8+n].J, mem_p[8+i*8+n].A)
-
-
-    #connect base nodes across units
-    for n, node_group in enumerate(base_node_names.T):
-        for i in range(num_units):
-            truss.AddMember(node_group[i]+'-'+node_group[i+1], node_group[i], node_group[i+1], mem_p[n+4].E, mem_p[n+4].G, mem_p[n+4].Iy, mem_p[n+4].Iz, mem_p[n+4].J, mem_p[n+4].A)    
-
-    truss.DefineSupport('1', True, True, True, True, True, True)
-    truss.DefineSupport('2', True, True, True, True, True, True)
-    truss.DefineSupport('3', True, True, True, True, True, True)
-    truss.DefineSupport('4', True, True, True, True, True, True)
-
-    
-
-    return(truss)
-
-node_a = my_node('a', 3, 5, 8)
-node_b = my_node('b', 19, 18, 18)
-members_p = member_props(9999,100,100,100,100,100)
-node_c = my_node('c', 10, 20, 15)
-truss = make_truss(1, [node_a], [members_p]*20)
-
-Visualization.RenderModel(truss, text_height=1, render_loads=False)
+my_truss = test_truss()
+my_truss.make_nodes(node_locs)
+my_truss.make_mem_ps(member_ds)
+my_truss.make_truss()
+my_truss.find_mass()
+my_truss.find_EI(12)
+#Visualization.RenderModel(my_truss.truss, text_height=0.0005, render_loads=True, deformed_shape=True, deformed_scale=1)
 
 
