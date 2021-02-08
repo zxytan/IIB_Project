@@ -16,9 +16,10 @@ class my_node():
 #make member properties class
 class member_props():
     """
-    gives member properties given diameter d (m), Young's modulus E (Pa), density p (kg/m^3)
+    gives member properties given diameter d (m), Young's modulus E (Pa) and Poisson ratio v
+    default generic material E = 1GPa, v = 0.3
     """
-    def __init__(self, d, E=3*10**9, v=0.3):
+    def __init__(self, d, E=1*10**9, v=0.3):
         self.E = E
         self.G = E/(2*(1+v))
         self.Iy = np.pi*(d/2)**4/4
@@ -27,7 +28,7 @@ class member_props():
         self.A = np.pi*(d/2)**2
 
 class test_truss:
-    def __init__(self, num_units=8, unit_len=0.02):
+    def __init__(self, num_units=8, unit_len=1):
         self.num_units = num_units
         self.unit_len = unit_len
         self.L = num_units*unit_len
@@ -38,11 +39,12 @@ class test_truss:
         for i, node in enumerate(node_locs):
             self.non_basic_nodes.append(my_node(chr(97+i), node[0], node[1], node[2]))
 
-    def make_mem_ps(self, member_ds, E=3*10**9, p=1.25, v=0.3):
+    def make_mem_ps(self, member_ds, E=1*10**9, p=1, v=0.3):
         """
         member diameters list in order shown here: https://photos.app.goo.gl/GNUjZherzaSmKiod9
+        default generic material E = 1GPa, v = 0.3, unit density
         """
-        self.num_members = int((self.num_units*2+1)*4+self.num_units*(self.num_nodes*8+(self.num_nodes*(self.num_nodes-1)/2)))
+        self.num_members = int((8+self.num_nodes*8+(self.num_nodes*(self.num_nodes-1)/2)))
         if len(member_ds) != self.num_members:
             raise NameError(f'wrong number of member diameters supplied! must be {self.num_members}')
         self.member_ds = member_ds
@@ -51,6 +53,8 @@ class test_truss:
         self.v = v
         self.mem_p = []
         for d in self.member_ds:
+            if d<0.001:
+                d = 0
             self.mem_p.append(member_props(d, self.E, self.v))
 
     # Create a new model
@@ -83,8 +87,9 @@ class test_truss:
                     m = 0
                 else:
                     m = n+1
-                self.truss.AddMember(node_group[n]+'-'+node_group[m], node_group[n], node_group[m], \
-                    self.mem_p[n].E, self.mem_p[n].G, self.mem_p[n].Iy, self.mem_p[n].Iz, self.mem_p[n].J, self.mem_p[n].A)
+                if(self.mem_p[n].A!=0.):
+                    self.truss.AddMember(node_group[n]+'-'+node_group[m], node_group[n], node_group[m], \
+                        self.mem_p[n].E, self.mem_p[n].G, self.mem_p[n].Iy, self.mem_p[n].Iz, self.mem_p[n].J, self.mem_p[n].A)
 
         for i in range(self.num_units):
             non_basic_node_group = non_basic_node_names[i*self.num_nodes:(i+1)*self.num_nodes]
@@ -93,8 +98,9 @@ class test_truss:
             for n, node in enumerate(non_basic_node_group):
                 for m, node_2 in enumerate(non_basic_node_group):
                     if n < m:
-                        self.truss.AddMember(node+'-'+node_2, node, node_2, \
-                            self.mem_p[idx].E, self.mem_p[idx].G, self.mem_p[idx].Iy, self.mem_p[idx].Iz, self.mem_p[idx].J, self.mem_p[idx].A)
+                        if(self.mem_p[idx].A!=0.):
+                            self.truss.AddMember(node+'-'+node_2, node, node_2, \
+                                self.mem_p[idx].E, self.mem_p[idx].G, self.mem_p[idx].Iy, self.mem_p[idx].Iz, self.mem_p[idx].J, self.mem_p[idx].A)
                         idx += 1
 
 
@@ -103,58 +109,48 @@ class test_truss:
             for i, node in enumerate(non_basic_node_group):
                 for n, base_node in enumerate(base_node_group):
                     idx = 8+i*8+n
-                    self.truss.AddMember(base_node+'-'+node, base_node, node, \
-                        self.mem_p[idx].E, self.mem_p[idx].G, self.mem_p[idx].Iy, self.mem_p[idx].Iz, self.mem_p[idx].J, self.mem_p[idx].A)
+                    if(self.mem_p[idx].A!=0.):
+                        self.truss.AddMember(base_node+'-'+node, base_node, node, \
+                            self.mem_p[idx].E, self.mem_p[idx].G, self.mem_p[idx].Iy, self.mem_p[idx].Iz, self.mem_p[idx].J, self.mem_p[idx].A)
 
 
         #connect base nodes across units
         for n, node_group in enumerate(self.base_node_names.T):
             for i in range(self.num_units):
-                self.truss.AddMember(node_group[i]+'-'+node_group[i+1], node_group[i], node_group[i+1], \
-                    self.mem_p[n+4].E, self.mem_p[n+4].G, self.mem_p[n+4].Iy, self.mem_p[n+4].Iz, self.mem_p[n+4].J, self.mem_p[n+4].A)    
+                if(self.mem_p[n+4].A!=0.):
+                    self.truss.AddMember(node_group[i]+'-'+node_group[i+1], node_group[i], node_group[i+1], \
+                        self.mem_p[n+4].E, self.mem_p[n+4].G, self.mem_p[n+4].Iy, self.mem_p[n+4].Iz, self.mem_p[n+4].J, self.mem_p[n+4].A)    
 
         self.truss.DefineSupport('1', True, True, True, True, True, True)
         self.truss.DefineSupport('2', True, True, True, True, True, True)
         self.truss.DefineSupport('3', True, True, True, True, True, True)
         self.truss.DefineSupport('4', True, True, True, True, True, True)
 
-    def find_mass(self):
-        self.mass = 0
+    def record_member_info(self):
+        self.Ls = []
+        self.member_masses = []
         for member in self.truss.Members:
             L = member.L()
+            self.Ls.append(L)
             A = member.A
-            self.mass += self.p*L*A
-        print(self.mass)
+            self.member_masses.append(self.p*L*A)
+    
+    def get_min_l(self):
+        return(min(self.Ls))
 
-    def find_EI(self, tip_load):
+    def get_mass(self):
+        return(sum(self.member_masses)/8)
+
+    def get_EI(self, tip_load):
         load_nodes = self.base_node_names[-1]
         for node in load_nodes:
             self.truss.AddNodeLoad(node, 'FY', -tip_load/4)
-        self.truss.Analyze()
+        self.truss.Analyze(verbose=False)
         deflections = []
         for i in range(4):
             deflections.append(abs(self.truss.GetNode(load_nodes[i]).DY['Combo 1']))
         deflection = max(deflections)
         if deflection > self.L/250:
-            raise NameError('large deflection, might want to reduce load!')
-        self.truss.ClearLoads()
-        self.EI = tip_load*self.L**3/(3*abs(deflection))
-        print(self.EI)
-        
-
-
-    
-
-# node_a = my_node('a', 0.003, 0.005, 0.008), node_b = my_node('b', 0.019, 0.018, 0.018), node_c = my_node('c', 0.01, 0.014, 0.015)
-node_locs = np.array([[0.17, 1.94, 0.46], [17.2, 5.3, 20], [18.1, 2.13, 20]])/1000
-member_ds = [0.004]*284
-
-my_truss = test_truss()
-my_truss.make_nodes(node_locs)
-my_truss.make_mem_ps(member_ds)
-my_truss.make_truss()
-my_truss.find_mass()
-my_truss.find_EI(12)
-#Visualization.RenderModel(my_truss.truss, text_height=0.0005, render_loads=True, deformed_shape=True, deformed_scale=1)
-
+            print(f'deflection {deflection} m')
+        return(tip_load*self.L**3/(3*abs(deflection)))
 
