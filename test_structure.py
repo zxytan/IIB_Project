@@ -127,20 +127,16 @@ class test_struct:
         self.struct.DefineSupport('3', True, True, True, False, False, False)
         self.struct.DefineSupport('4', True, True, True, False, False, False)
 
-    def record_member_info(self):
-        self.Ls = []
-        self.member_masses = []
+    def record_struct_info(self):
+        Ls = []
+        member_masses = []
         for member in self.struct.Members:
             L = member.L()
-            self.Ls.append(L)
+            Ls.append(L)
             A = member.A
-            self.member_masses.append(self.p*L*A)
-    
-    def get_min_l(self):
-        return(min(self.Ls))
-
-    def get_mass(self):
-        return(sum(self.member_masses)/8)
+            member_masses.append(self.p*L*A)
+        self.min_l = min(Ls)
+        self.mass = sum(member_masses)/8
 
     def release_moments(self):
         for member in self.struct.Members:
@@ -159,6 +155,14 @@ class test_struct:
         if deflection > self.L/250:
             print(f'deflection {deflection} m')
         return(tip_load*self.L**3/(3*abs(deflection)))
+
+
+    def get_equiv_EI(self):
+        area = self.mass/(self.L*self.p)
+        r = np.sqrt(area/np.pi)
+        I = np.pi*r**4/4
+        return(self.E*I)
+
 
 # # node_a = my_node('a', 0.003, 0.005, 0.008), node_b = my_node('b', 0.019, 0.018, 0.018), node_c = my_node('c', 0.01, 0.014, 0.015)
 # node_locs = np.array([[0.17, 1.94, 0.46], [17.2, 5.3, 20], [18.1, 2.13, 20]])/1000
