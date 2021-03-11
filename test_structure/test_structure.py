@@ -144,16 +144,15 @@ class test_struct:
                            False, False, False, False, True, True)
 
     def get_EI(self, tip_load):
+        self.struct.ClearLoads()
         load_nodes = self.base_node_names[-1]
         for node in load_nodes:
             self.struct.AddNodeLoad(node, 'FY', -tip_load/4)
-        self.struct.Analyze(verbose=False)
+        self.struct.Analyze()
         deflections = []
         for i in range(4):
             deflections.append(abs(self.struct.GetNode(load_nodes[i]).DY['Combo 1']))
-        deflection = max(deflections)
-        if deflection > self.L/250:
-            print(f'deflection {deflection} m')
+        deflection = np.mean(deflections)
         return(tip_load*self.L**3/(3*abs(deflection)))
 
 
@@ -164,16 +163,15 @@ class test_struct:
         return(self.E*I)
 
 
-# # node_a = my_node('a', 0.003, 0.005, 0.008), node_b = my_node('b', 0.019, 0.018, 0.018), node_c = my_node('c', 0.01, 0.014, 0.015)
-# node_locs = np.array([[0.17, 1.94, 0.46], [17.2, 5.3, 20], [18.1, 2.13, 20]])/1000
-# member_ds = [0.004]*35
+# node_locs = np.array([[0.17, 1.94, 0.46], [17.2, 5.3, 20], [18.1, 2.13, 20]])/20
+# member_ds = [0.04]*35
 
-# s = test_struct(unit_len=0.02)
+# s = test_struct()
 # s.make_nodes(node_locs)
 # s.make_mem_ps(member_ds)
 # s.make_struct()
-# s.record_member_info()
-# print(s.get_mass())
-# s.release_moments()
-# print(s.get_EI(12))
-# Visualization.RenderModel(s.struct, text_height=0.0005, render_loads=True, deformed_shape=True, deformed_scale=1)
+# #s.release_moments()
+# s.record_struct_info()
+# print(s.mass)
+# print(s.get_EI(100))
+# Visualization.RenderModel(s.struct, text_height=0.05, render_loads=True, deformed_shape=True, deformed_scale=1)
