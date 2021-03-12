@@ -54,19 +54,40 @@ class optimise:
 
         def f_mf(X):
             y_pred, y_var = mf_model.predict(X)
+            y_pred = y_pred._value
             if y_pred[0][0] > 0:
                 return(y_pred[0][0])
             else:
                 return(10**9)
         
         self.mf_opt = BayesianOptimization(f_mf,
-                              X = X_H,
-                              Y = y_H,
                              domain=self.domain,
                              acquisition_type="EI",
                              model_type='GP',
                              exact_feval=True)
         self.mf_opt.run_optimization(max_iter = self.mf_max_iter, eps=1e-6)
+        
+    def run_sparse_mf_opt(self):
+        X_L, y_L = self.X_L[(self.y_L<1*10**9).T[0],:], self.y_L[(self.y_L<1*10**9).T[0],:]
+        X_H, y_H = self.X_H[(self.y_H<1*10**9).T[0],:], self.y_H[(self.y_H<1*10**9).T[0],:]
+        mf_model = Multifidelity_GP(X_L, y_L, X_H, y_H)
+        mf_model.train()
+
+        def f_mf(X):
+            y_pred, y_var = mf_model.predict(X)
+            y_pred = y_pred._value
+            if y_pred[0][0] > 0:
+                return(y_pred[0][0])
+            else:
+                return(10**9)
+        
+        self.mf_opt = BayesianOptimization(f_mf,
+                             domain=self.domain,
+                             acquisition_type="EI",
+                             initial_design_numdata=self.mf_max_iter,
+                             model_type='sparseGP',
+                             exact_feval=True)
+        self.mf_opt.run_optimization()
     
     def report_opt_results(self):
         mf = structure(self.hf_model, self.n, self.mf_opt.x_opt, self.EI_req)
@@ -78,50 +99,6 @@ class optimise:
         self.results['hf mass'] = hf.mystruct.mass
         self.results['hf EI'] = hf.mystruct.get_EI(100)
         lf = structure(self.hf_model, self.n, self.lf_opt.x_opt, self.EI_req)
-        self.results['lf score'] = hf.score
-        self.results['lf mass'] = hf.mystruct.mass
-        self.results['lf EI'] = hf.mystruct.get_EI(100)
-        
-    
-
-#iterate and test with different hyperparameters
-
-for n in [1, 2, 3, 4, 5]:
-    for hf_max_iter in [10, 20, 50, 100]:
-        for lf_max_iter in [20, 50, 100, 200]:
-            for mf_max_iter in [50, 100, 200, 400]:
-                for lf_model in ["equiv_cant", "unit"]:
-                    opt = optimise(n, "beam", lf_model, hf_max_iter, lf_max_iter, mf_max_iter)
-                    print(opt.results)
-
-                    start = time.time()
-                    opt.run_hf_opt()
-                    end = time.time()
-                    hf_time = end-start
-
-                    start = time.time()
-                    opt.run_lf_opt()
-                    end = time.time()
-                    lf_time = end-start
-
-                    start = time.time()
-                    try:
-                        opt.run_mf_opt()
-                    except np.linalg.LinAlgError as err:
-                        print(err)
-                        continue
-                    end = time.time()
-                    mf_time = end-start
-
-                    opt.report_opt_results()
-                    results = opt.results
-                    results['hf time'] = hf_time
-                    results['lf time'] = lf_time
-                    results['mf time'] = mf_time
-
-                    with open('optimisation_results.csv', 'w') as output_file:
-                        fieldnames = results.keys()
-                        dict_writer = csv.DictWriter(output_file, dialect="excel", fieldnames=fieldnames)
-                        dict_writer.writerow(results)
-   
-
+        self.results['lf score'] = lf.score
+        self.results['lf mass'] = lf.mystruct.mass
+        self.results['lf EI'] = lf.mystruct.get_EI(100)

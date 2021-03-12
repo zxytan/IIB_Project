@@ -1,0 +1,5 @@
+GPyOpt.egg-info/PKG-INFO
+GPyOpt.egg-info/SOURCES.txt
+GPyOpt.egg-info/dependency_links.txt
+GPyOpt.egg-info/requires.txt
+GPyOpt.egg-info/top_level.txt

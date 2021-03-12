@@ -145,12 +145,13 @@ class GP:
 # A minimal GP multi-fidelity class (two levels of fidelity)
 class Multifidelity_GP:
     # Initialize the class
-    def __init__(self, X_L, y_L, X_H, y_H):        
+    def __init__(self, X_L, y_L, X_H, y_H, verbosity=False):        
         self.D = X_H.shape[1]
         self.X_L = X_L
         self.y_L = y_L
         self.X_H = X_H
         self.y_H = y_H
+        self.verbosity = verbosity
         
         self.hyp = self.init_params()
         print("Total number of parameters: %d" % (self.hyp.shape[0]))
@@ -252,6 +253,7 @@ class Multifidelity_GP:
         
     #  Prints the negative log-marginal likelihood at each training step         
     def callback(self,params):
-        print("Log likelihood {}".format(self.likelihood(params)))
+        if self.verbosity:
+            print("Log likelihood {}".format(self.likelihood(params)))
   
       
