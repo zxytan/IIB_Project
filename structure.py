@@ -2,7 +2,7 @@ from test_structure.test_structure import test_struct
 import numpy as np
 
 class structure():
-    def __init__(self, model_type, n, X, EI_req=1*10**6):
+    def __init__(self, model_type, n, X, EI_req=1*10**7):
         """
         model_type (str): beam, truss, unit or equiv_cant
         n (int): number of non-basic nodes
@@ -23,7 +23,7 @@ class structure():
 
         self.mystruct.record_struct_info()
         if model_type == "equiv_cant":
-            EI = self.mystruct.get_equiv_EI()
+            EI = self.mystruct.get_cant_EI()
         else:
             EI = self.mystruct.get_EI(100)
         

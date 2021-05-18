@@ -33,10 +33,11 @@ class test_struct:
         self.num_units = num_units
         self.unit_len = unit_len
         self.L = num_units*unit_len
+        self.num_nodes = 0
+        self.non_basic_nodes = []
 
     def make_nodes(self, node_locs):
         self.num_nodes = len(node_locs)
-        self.non_basic_nodes = []
         for i, node in enumerate(node_locs):
             self.non_basic_nodes.append(my_node(chr(97+i), node[0], node[1], node[2]))
 
@@ -136,7 +137,7 @@ class test_struct:
             A = member.A
             member_masses.append(self.p*L*A)
         self.min_l = min(Ls)
-        self.mass = sum(member_masses)/8
+        self.mass = sum(member_masses)
 
     def release_moments(self):
         for member in self.struct.Members:
@@ -156,11 +157,22 @@ class test_struct:
         return(tip_load*self.L**3/(3*abs(deflection)))
 
 
-    def get_equiv_EI(self):
+    def get_cant_EI(self):
         area = self.mass/(self.L*self.p)
         r = np.sqrt(area/np.pi)
         I = np.pi*r**4/4
         return(self.E*I)
+
+    def get_equiv_beam_EI(self):
+        member_mass = self.mass/(self.num_units*8+4)
+        member_area = member_mass/(self.unit_len/self.p)
+        member_diameter = 2*np.sqrt(member_area/np.pi)
+        equiv_beam = test_struct(unit_len=self.unit_len)
+        equiv_beam.make_nodes([])
+        equiv_beam.make_mem_ps([member_diameter]*8)
+        equiv_beam.make_struct()
+        equiv_beam.record_struct_info()
+        return(equiv_beam.get_EI(100))
 
 
 # node_locs = np.array([[0.17, 1.94, 0.46], [17.2, 5.3, 20], [18.1, 2.13, 20]])/20
@@ -174,4 +186,6 @@ class test_struct:
 # s.record_struct_info()
 # print(s.mass)
 # print(s.get_EI(100))
+# print(s.get_cant_EI())
+# print(s.get_equiv_beam_EI())
 # Visualization.RenderModel(s.struct, text_height=0.05, render_loads=True, deformed_shape=True, deformed_scale=1)

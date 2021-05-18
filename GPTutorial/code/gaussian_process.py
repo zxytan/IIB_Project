@@ -243,13 +243,14 @@ class Multifidelity_GP:
         psi = np.hstack((psi1,psi2))
 
         alpha = np.linalg.solve(np.transpose(L), np.linalg.solve(L,y))
+
         pred_u_star = np.matmul(psi,alpha)
 
         beta = np.linalg.solve(np.transpose(L), np.linalg.solve(L,psi.T))
         var_u_star = rho**2 * self.kernel(X_star, X_star, theta_L) + \
                      self.kernel(X_star, X_star, theta_H) - np.matmul(psi,beta)
         
-        return pred_u_star, var_u_star
+        return pred_u_star._value, var_u_star._value
         
     #  Prints the negative log-marginal likelihood at each training step         
     def callback(self,params):
