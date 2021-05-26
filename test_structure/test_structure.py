@@ -163,7 +163,7 @@ class test_struct:
         I = np.pi*r**4/4
         return(self.E*I)
 
-    def get_equiv_beam_EI(self):
+    def get_equiv_beam_EI(self, tip_load):
         member_mass = self.mass/(self.num_units*8+4)
         member_area = member_mass/(self.unit_len/self.p)
         member_diameter = 2*np.sqrt(member_area/np.pi)
@@ -172,17 +172,16 @@ class test_struct:
         equiv_beam.make_mem_ps([member_diameter]*8)
         equiv_beam.make_struct()
         equiv_beam.record_struct_info()
-        return(equiv_beam.get_EI(100))
+        return(equiv_beam.get_EI(tip_load))
 
 
-# node_locs = np.array([[0.17, 1.94, 0.46], [17.2, 5.3, 20], [18.1, 2.13, 20]])/20
-# member_ds = [0.04]*35
+# node_locs = np.array([[17, 9, 2]])/20
+# member_ds = [0.04]*10 + [0]*5 + [0.01]
 
-# s = test_struct()
+# s = test_struct(num_units=1)
 # s.make_nodes(node_locs)
 # s.make_mem_ps(member_ds)
 # s.make_struct()
-# #s.release_moments()
 # s.record_struct_info()
 # print(s.mass)
 # print(s.get_EI(100))

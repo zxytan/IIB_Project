@@ -21,7 +21,7 @@ class GP:
         
         self.hyp = self.init_params()
                
-        self.jitter = 1e-8
+        self.jitter = 1e-6
         
         self.likelihood(self.hyp)
         print("Total number of parameters: %d" % (self.hyp.shape[0]))
@@ -140,7 +140,6 @@ class GP:
     #  Prints the negative log-marginal likelihood at each training step         
     def callback(self,params):
         print("Log likelihood {}".format(self.likelihood(params)))
-        
 
 # A minimal GP multi-fidelity class (two levels of fidelity)
 class Multifidelity_GP:

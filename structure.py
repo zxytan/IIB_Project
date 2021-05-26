@@ -22,14 +22,18 @@ class structure():
             self.mystruct.release_moments()
 
         self.mystruct.record_struct_info()
+        self.mass = self.mystruct.mass
         if model_type == "equiv_cant":
-            EI = self.mystruct.get_cant_EI()
+            self.EI = self.mystruct.get_cant_EI()
         else:
-            EI = self.mystruct.get_EI(100)
+            self.EI = self.mystruct.get_EI(100)
         
         if self.mystruct.min_l<0.01:
             self.score = 10**9
-        elif np.isnan(EI):
+        elif np.isnan(self.EI):
             self.score = 10**10
         else:
-            self.score = self.mystruct.mass+10**7*max(1/EI-1/EI_req, 0)
+            self.score = self.mass+10**7*max(1/self.EI-1/EI_req, 0)
+        
+        self.equiv_EI = self.mystruct.get_equiv_beam_EI(100)
+        self.equiv_score = self.mass+10**7*max(1/self.equiv_EI-1/EI_req, 0)
